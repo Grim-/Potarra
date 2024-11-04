@@ -1,4 +1,5 @@
 ﻿using RimWorld;
+using RimWorld.Planet;
 using SaiyanMod;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,7 @@ namespace Potarra
 {
     public class AbilityCompProperties_PotaraFusion : CompProperties_AbilityEffect
     {
+        public HediffDef FusionHediff;
         public int FusionLevelFlatBonus = 30;
         public float FailureChance = 0.2f;
 
@@ -22,6 +24,7 @@ namespace Potarra
     public class AbilityComp_PotaraFusion : CompAbilityEffect
     {
         new AbilityCompProperties_PotaraFusion Props => (AbilityCompProperties_PotaraFusion)props;
+        private FusionManager FusionManager => Current.Game.GetComponent<FusionManager>();
 
         public override void Apply(LocalTargetInfo target, LocalTargetInfo dest)
         {
@@ -29,6 +32,11 @@ namespace Potarra
 
             if (target.Thing is Pawn targetPawn && parent.pawn != null)
             {
+                if (targetPawn.GetComp<CompAbilities>() == null)
+                {
+                    return;
+                }
+
                 if (parent.pawn.IsAFusionPawn() || targetPawn.IsAFusionPawn())
                 {
                     //dont let merged pawns merge again
@@ -39,10 +47,35 @@ namespace Potarra
             }
         }
 
+        public override bool GizmoDisabled(out string reason)
+        {
+            return base.GizmoDisabled(out reason) && !parent.pawn.IsAbilityUser();
+        }
+
+        private void InitiateFusion(Pawn pawn1, Pawn pawn2)
+        {
+            bool IsFusionFailure = Rand.Value < Props.FailureChance;
+            Map map = parent.pawn.Map;
+            IntVec3 position = parent.pawn.Position;
+            Pawn fusedPawn = FusionManager.GetOrCreateFusedPawn(pawn1, pawn2, position, map, Props, IsFusionFailure);
+            pawn1.DeSpawn();
+            Find.WorldPawns.PassToWorld(pawn1, PawnDiscardDecideMode.KeepForever);
+
+            pawn2.DeSpawn();
+            Find.WorldPawns.PassToWorld(pawn2, PawnDiscardDecideMode.KeepForever);
+
+            if (!fusedPawn.Spawned)
+            {
+                GenSpawn.Spawn(fusedPawn, position, map);
+            }       
+        }
+
         public override bool CanApplyOn(LocalTargetInfo target, LocalTargetInfo dest)
         {
             return base.CanApplyOn(target, dest) &&
                    target.Thing is Pawn targetPawn &&
+                   targetPawn.IsAbilityUser() &&
+                   parent.pawn.IsAbilityUser() &&
                    !targetPawn.DeadOrDowned &&
                    (HasPotaraEarring(targetPawn) || PawnSkillExtensions.HasFusionAbility(targetPawn)) &&
                    targetPawn != parent.pawn &&
@@ -61,77 +94,9 @@ namespace Potarra
             return pawn.health.hediffSet.HasHediff(PotarraDefOf.DBZ_PotaraFusionFatigue);
         }
 
-        private void InitiateFusion(Pawn pawn1, Pawn pawn2)
+        private bool HasKi(Pawn Pawn)
         {
-            bool IsFusionFailure = Rand.Value <= Props.FailureChance;
-            Pawn fusedPawn = null;
-
-            int MergedLevel = PawnFusionUtil.GetMergedLevel(pawn1, pawn2) + Props.FusionLevelFlatBonus;
-
-            if (IsFusionFailure)
-            {
-                fusedPawn = PawnFusionUtil.CreateFusionPawn(pawn1, pawn2, PawnKindDefOf.Colonist);
-                fusedPawn.health.GetOrAddHediff(PotarraDefOf.DBZ_PotaraFusionFailure);
-                MergedLevel /= 2 + 1;
-                fusedPawn.story.bodyType = BodyTypeDefOf.Fat;
-                fusedPawn.ResolveAllGraphicsSafely();
-            }
-            else
-            {
-                fusedPawn = PawnFusionUtil.CreateFusionPawn(pawn1, pawn2);
-            }
-
-            PawnSkillExtensions.RemoveKiGene(fusedPawn);
-            GeneDef FusedGeneChoice = PawnSkillExtensions.PickBestKiGene(pawn1, pawn2);
-
-            if (FusedGeneChoice != null)
-            {
-                if (!fusedPawn.genes.HasActiveGene(FusedGeneChoice))
-                {
-                    fusedPawn.genes.AddGene(FusedGeneChoice, true);
-                }
-            }
-            var abilityKi = fusedPawn.GetPawnAbilityClassKI();
-
-            abilityKi.SetLevel(MergedLevel);
-            abilityKi.skillPoints = MergedLevel;
-            PawnSkillExtensions.LearnAndLevelAbilities(fusedPawn);
-            pawn1.DeSpawn();
-            pawn2.DeSpawn();
-        }
-    }
-
-    public class CompProperties_GrantAbilityOnUse : CompProperties_UseEffect
-    {
-        public RimWorld.AbilityDef ability;
-
-        public CompProperties_GrantAbilityOnUse()
-        {
-            compClass = typeof(GrantAbilityOnUse);
-        }
-    }
-
-    public class GrantAbilityOnUse : CompUseEffect
-    {
-        public new CompProperties_GrantAbilityOnUse Props => (CompProperties_GrantAbilityOnUse)props;
-
-        public override void DoEffect(Pawn usedBy)
-        {
-            base.DoEffect(usedBy);
-
-            if (!usedBy.HasAbility(Props.ability))
-            {
-                usedBy.abilities.GainAbility(Props.ability);
-            }
-        }
-
-        public override AcceptanceReport CanBeUsedBy(Pawn p)
-        {
-            if (p.HasAbility(Props.ability))
-            {
-                return "PsycastNeurotrainerAbilityAlreadyLearned".Translate(p.Named("USER"), this.Props.ability.LabelCap);
-            }
-            return base.CanBeUsedBy(p);
+            return Pawn.IsAbilityUser();
         }
     }
 }

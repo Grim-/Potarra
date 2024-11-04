@@ -69,11 +69,15 @@
     <Compile Include="AbilityCompProperties_EndPotaraFusion.cs" />
     <Compile Include="AbilityCompProperties_PotaraFusion.cs" />
     <Compile Include="CompProperties_GrantAbilityOnEquip.cs" />
+    <Compile Include="CompProperties_GrantAbilityOnUse.cs" />
     <Compile Include="CompProperties_PotaraFusion.cs" />
+    <Compile Include="FusionPawnData.cs" />
     <Compile Include="Gene_PotaraFusion.cs" />
     <Compile Include="HediffComp_PotaraFusion.cs" />
+    <Compile Include="JobDriver_PerformFusionDance.cs" />
     <Compile Include="PawnFusionUtil.cs" />
     <Compile Include="PawnSkillExtensions.cs" />
+    <Compile Include="PotaraGameComponent.cs" />
     <Compile Include="PotarraDefOf.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

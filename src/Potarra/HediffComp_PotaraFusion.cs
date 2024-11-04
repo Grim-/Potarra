@@ -1,4 +1,6 @@
 ﻿using RimWorld;
+using RimWorld.Planet;
+using SaiyanMod;
 using Verse;
 
 namespace Potarra
@@ -47,63 +49,109 @@ namespace Potarra
             }
         }
 
+        public override void CompPostPostRemoved()
+        {
+            EndFusion(false);
+            base.CompPostPostRemoved();
+        }
+
         public override void Notify_PawnDied(DamageInfo? dinfo, Hediff culprit = null)
         {
-            base.Notify_PawnDied(dinfo, culprit);
-
             EndFusion(true);
+            base.Notify_PawnDied(dinfo, culprit);
         }
 
         public override void CompPostTick(ref float severityAdjustment)
         {
             base.CompPostTick(ref severityAdjustment);
 
-            ticksRemaining--;
-            if (ticksRemaining <= 0)
+            if (Props.durationTicks > 0)
             {
-                EndFusion();
+                if (Pawn.IsHashIntervalTick(500))
+                {
+                    if (Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_LegendarySuperSaiyanHediff)
+                        || Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_SuperSaiyanIIIHediff)
+                        || Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_TrueSuperSaiyanHediff)
+                        || Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_AwakenedHediff)
+                        || Pawn.HasSuperSaiyanActive())
+                    {
+                        ticksRemaining -= 2;
+                    }
+                }
+
+                ticksRemaining--;
+                if (ticksRemaining <= 0)
+                {
+                    EndFusion();
+                }
             }
         }
 
         public void EndFusion(bool FusionPawnDied = false)
         {
-            if (originalPawn1 != null && originalPawn2 != null)
+            IntVec3 position = Pawn.Position;
+            Map map = Pawn.MapHeld;
+
+            RestoreOriginalPawn(originalPawn1, position, map);
+            RestoreOriginalPawn(originalPawn2, position, map);
+
+            if (FusionPawnDied)
             {
-                GenSpawn.Spawn(originalPawn1, Pawn.Position, Pawn.Map);
-                GenSpawn.Spawn(originalPawn2, Pawn.Position, Pawn.Map);
-
-
-                originalPawn1.health.AddHediff(PotarraDefOf.DBZ_PotaraFusionFatigue);
-                originalPawn2.health.AddHediff(PotarraDefOf.DBZ_PotaraFusionFatigue);
-
-                foreach (Apparel apparel in originalPawn1.apparel.WornApparel)
-                {
-                    var grantComp = apparel.GetComp<CompGrantAbilityOnEquip>();
-                    if (grantComp != null)
-                    {
-                        grantComp.Notify_Equipped(originalPawn1);
-                    }
-                }
-
-                foreach (Apparel apparel in originalPawn2.apparel.WornApparel)
-                {
-                    var grantComp = apparel.GetComp<CompGrantAbilityOnEquip>();
-                    if (grantComp != null)
-                    {
-                        grantComp.Notify_Equipped(originalPawn2);
-                    }
-                }
-
-                if (FusionPawnDied)
-                {
-                    HealthUtility.DamageUntilDowned(originalPawn1);
-                    HealthUtility.DamageUntilDowned(originalPawn2);
-                    Pawn.health.Reset();
-                }             
-                // Remove fused pawn
-                Pawn.Destroy();
-
+                DamageOriginalPawns(originalPawn1, originalPawn2);
             }
+
+
+            if (Pawn.Spawned && !FusionPawnDied)
+            {
+                Pawn.DeSpawn();
+            }
+
+            if (!Find.WorldPawns.Contains(Pawn))
+            {
+                Find.WorldPawns.PassToWorld(Pawn, PawnDiscardDecideMode.KeepForever);
+            }       
+        }
+
+        private void RestoreOriginalPawn(Pawn originalPawn, IntVec3 position, Map map)
+        {
+            if (originalPawn != null)
+            {
+                if (!originalPawn.Spawned)
+                {
+                    GenSpawn.Spawn(originalPawn, position, map);
+
+                    if (!originalPawn.Faction.IsPlayer)
+                    {
+                        originalPawn.SetFaction(Faction.OfPlayer);
+                    }
+                }
+
+                originalPawn.health.AddHediff(PotarraDefOf.DBZ_PotaraFusionFatigue);
+                NotifyComp(originalPawn);
+            }
+        }
+
+        private void DamageOriginalPawns(Pawn Pawn1, Pawn Pawn2)
+        {
+            if (!Pawn1.Dead && Pawn1.Spawned) 
+                HealthUtility.DamageUntilDowned(originalPawn1);
+            if (!Pawn2.Dead && Pawn2.Spawned) 
+                HealthUtility.DamageUntilDowned(originalPawn2);
+
+        }
+
+
+        private void NotifyComp(Pawn Pawn)
+        {
+            foreach (Apparel apparel in Pawn.apparel.WornApparel)
+            {
+                var grantComp = apparel.GetComp<CompGrantAbilityOnEquip>();
+                if (grantComp != null)
+                {
+                    grantComp.Notify_Equipped(Pawn);
+                }
+            }
+
         }
     }
 }

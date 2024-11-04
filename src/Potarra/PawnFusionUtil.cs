@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Verse;
 using TaranMagicFramework;
 using SaiyanMod;
+using UnityEngine;
 
 namespace Potarra
 {
@@ -87,7 +88,8 @@ namespace Potarra
                         // Learn and set combined level
                         if (!fusedKi.Learned(abilityDef) && level1 + level2 > 0)
                         {
-                            fusedKi.LearnAbility(abilityDef, false, level1 + level2);
+
+                            fusedKi.LearnAbility(abilityDef, false, Mathf.Clamp(level1 + level2, 0, abilityDef.abilityTiers.Count -1));
                         }
                     }
                 }

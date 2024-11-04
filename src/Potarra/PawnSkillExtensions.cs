@@ -70,6 +70,63 @@ namespace Potarra
             }
         }
 
+        [DebugAction("The Saiyans", "GrantLevel", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        public static void GrantLevel(Pawn p)
+        {
+            var pawnOneAbilities = p.GetComp<CompAbilities>();
+
+            if (pawnOneAbilities.TryGetKIAbilityClass(out AbilityClassKI fusedAbility))
+            {
+                fusedAbility.SetLevel(fusedAbility.level + 1);
+            }
+        }
+
+        [DebugAction("The Saiyans", "GrantSuperSaiyan", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        public static void GrantSuperSaiyan(Pawn p)
+        {
+            var pawnOneAbilities = p.GetComp<CompAbilities>();
+
+            if (pawnOneAbilities.TryGetKIAbilityClass(out AbilityClassKI fusedAbility))
+            {
+                if (!fusedAbility.Learned(SR_DefOf.SR_SuperSaiyan))
+                {
+                    fusedAbility.LearnAbility(SR_DefOf.SR_SuperSaiyan, false, SR_DefOf.SR_SuperSaiyan.abilityTiers.Count - 1);
+                }
+            }
+        }
+
+
+        [DebugAction("The Saiyans", "RemovePotarraFatigue", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        public static void RemovePotarraFatigue(Pawn p)
+        {
+            if (p.health.hediffSet.TryGetHediff(PotarraDefOf.DBZ_PotaraFusionFatigue, out Hediff hediff))
+            {
+                p.health.RemoveHediff(hediff);
+            }
+        }
+
+        [DebugAction("The Saiyans", "MaxLevel", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        public static void MaxLevel(Pawn p)
+        {
+            var pawnOneAbilities = p.GetComp<CompAbilities>();
+
+            if (pawnOneAbilities.TryGetKIAbilityClass(out AbilityClassKI fusedAbility))
+            {
+                fusedAbility.SetLevel(fusedAbility.MaxLevel);
+            }
+        }
+
+        [DebugAction("The Saiyans", "MaxSkillPoints", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        public static void MaxSkillPoints(Pawn p)
+        {
+            var pawnOneAbilities = p.GetComp<CompAbilities>();
+
+            if (pawnOneAbilities.TryGetKIAbilityClass(out AbilityClassKI fusedAbility))
+            {
+                fusedAbility.skillPoints = fusedAbility.MaxLevel;
+            }
+        }
+
         public static bool HasFusionAbility(Pawn p)
         {
             return p.abilities.AllAbilitiesForReading.Any(x => x.def == PotarraDefOf.DBZ_FusionAbility || x.def == PotarraDefOf.DBZ_PotaraFusionAbility);
@@ -147,7 +204,7 @@ namespace Potarra
             }
         }
 
-        [DebugAction("The Saiyans", "GiveRandomtSaiyanGenes", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        [DebugAction("The Saiyans", "GiveRandomSaiyanGene", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
 
         public static void GiveRandomtSaiyanGenes(Pawn Pawn)
         {
