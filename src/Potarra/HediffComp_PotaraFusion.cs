@@ -7,7 +7,7 @@ namespace Potarra
 {
     public class HediffCompProperties_PotaraFusion : HediffCompProperties
     {
-        public int durationTicks = 60000; // Default duration, can be overridden in XML
+        public int durationTicks = 9600; 
 
         public HediffCompProperties_PotaraFusion()
         {
@@ -22,6 +22,12 @@ namespace Potarra
         private int ticksRemaining;
 
         public HediffCompProperties_PotaraFusion Props => (HediffCompProperties_PotaraFusion)props;
+
+        public override string CompDescriptionExtra => base.CompDescriptionExtra + ExtraDescription;
+
+        private string ExtraDescription => Props.durationTicks > 0 ? $"\r\n Time Remaining {ticksRemaining.ToStringSecondsFromTicks("F0")}" : "Permanent";
+
+        private bool IsPermanent => Props.durationTicks <= 0;
 
         public override void CompPostMake()
         {
@@ -43,11 +49,27 @@ namespace Potarra
             originalPawn2 = pawn2;
             ticksRemaining = Props.durationTicks;
 
+            GrantEndPotara();
+        }
+
+
+        private void GrantEndPotara()
+        {
             if (!parent.pawn.HasAbility(PotarraDefOf.DBZ_EndPotaraFusion))
             {
                 parent.pawn.abilities.GainAbility(PotarraDefOf.DBZ_EndPotaraFusion);
             }
         }
+
+
+        //private void RemoveEndPotara()
+        //{
+        //    if (parent.pawn.HasAbility(PotarraDefOf.DBZ_EndPotaraFusion))
+        //    {
+        //        parent.pawn.abilities.RemoveAbility(PotarraDefOf.DBZ_EndPotaraFusion);
+        //    }
+        //}
+
 
         public override void CompPostPostRemoved()
         {
@@ -65,32 +87,45 @@ namespace Potarra
         {
             base.CompPostTick(ref severityAdjustment);
 
-            if (Props.durationTicks > 0)
+            if (parent.pawn.Spawned)
             {
-                if (Pawn.IsHashIntervalTick(500))
+                if (!IsPermanent)
                 {
-                    if (Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_LegendarySuperSaiyanHediff)
-                        || Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_SuperSaiyanIIIHediff)
-                        || Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_TrueSuperSaiyanHediff)
-                        || Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_AwakenedHediff)
-                        || Pawn.HasSuperSaiyanActive())
-                    {
-                        ticksRemaining -= 2;
-                    }
+                    TickPowerUpDrain();
+                    Tick();
                 }
+            }
+        }
 
-                ticksRemaining--;
-                if (ticksRemaining <= 0)
+        private void TickPowerUpDrain()
+        {
+            if (Pawn.IsHashIntervalTick(500))
+            {
+                if (Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_LegendarySuperSaiyanHediff)
+                    || Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_SuperSaiyanIIIHediff)
+                    || Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_TrueSuperSaiyanHediff)
+                    || Pawn.health.hediffSet.HasHediff(SR_DefOf.SR_AwakenedHediff)
+                    || Pawn.HasSuperSaiyanActive())
                 {
-                    EndFusion();
+                    ticksRemaining -= 2;
                 }
+            }
+        }
+
+        private void Tick()
+        {
+            ticksRemaining--;
+
+            if (ticksRemaining <= 0)
+            {
+                EndFusion(false);
             }
         }
 
         public void EndFusion(bool FusionPawnDied = false)
         {
             IntVec3 position = Pawn.Position;
-            Map map = Pawn.MapHeld;
+            Map map = Pawn.Map;
 
             RestoreOriginalPawn(originalPawn1, position, map);
             RestoreOriginalPawn(originalPawn2, position, map);
@@ -98,8 +133,12 @@ namespace Potarra
             if (FusionPawnDied)
             {
                 DamageOriginalPawns(originalPawn1, originalPawn2);
+                Messages.Message($"{Pawn.NameShortColored} has died shattering the fusion, {originalPawn1.NameShortColored} and {originalPawn2.NameShortColored} are both critically injured!", MessageTypeDefOf.NeutralEvent);
             }
-
+            else
+            {
+                Messages.Message($"{Pawn.NameShortColored} fusion has ended.", MessageTypeDefOf.NeutralEvent);
+            }
 
             if (Pawn.Spawned && !FusionPawnDied)
             {
@@ -109,7 +148,7 @@ namespace Potarra
             if (!Find.WorldPawns.Contains(Pawn))
             {
                 Find.WorldPawns.PassToWorld(Pawn, PawnDiscardDecideMode.KeepForever);
-            }       
+            }        
         }
 
         private void RestoreOriginalPawn(Pawn originalPawn, IntVec3 position, Map map)
@@ -126,7 +165,12 @@ namespace Potarra
                     }
                 }
 
-                originalPawn.health.AddHediff(PotarraDefOf.DBZ_PotaraFusionFatigue);
+                if (!originalPawn.health.hediffSet.HasHediff(PotarraDefOf.DBZ_PotaraFusionFatigue))
+                {
+                    //Log.Message($"Adding Fusion Fatigue to {originalPawn.Name}");
+                    originalPawn.health.AddHediff(PotarraDefOf.DBZ_PotaraFusionFatigue);
+                }
+
                 NotifyComp(originalPawn);
             }
         }
@@ -152,6 +196,11 @@ namespace Potarra
                 }
             }
 
+        }
+
+        public void ResetDuration()
+        {
+            ticksRemaining = Props.durationTicks;
         }
     }
 }

@@ -129,7 +129,7 @@ namespace Potarra
 
         public static bool HasFusionAbility(Pawn p)
         {
-            return p.abilities.AllAbilitiesForReading.Any(x => x.def == PotarraDefOf.DBZ_FusionAbility || x.def == PotarraDefOf.DBZ_PotaraFusionAbility);
+            return p.abilities.AllAbilitiesForReading.Any(x => x.def == PotarraDefOf.DBZ_FusionAbility || x.def == PotarraDefOf.DBZ_PotaraFusionAbility || x.def == PotarraDefOf.DBZ_PotaraPermanentFusionAbility);
         }
 
         public static void LearnAndLevelAbilities(Pawn p)
@@ -182,7 +182,12 @@ namespace Potarra
             if (pawnAbilities == null) return -1;
             return pawnAbilities.level;
         }
-
+        public static float GetPawnKiXP(this Pawn Pawn)
+        {
+            var pawnAbilities = Pawn.GetPawnAbilityClassKI();
+            if (pawnAbilities == null) return -1;
+            return pawnAbilities.xpPoints;
+        }
         public static AbilityClassKI GetPawnAbilityClassKI(this Pawn Pawn)
         {
             var pawnAbilities = Pawn.GetComp<CompAbilities>();

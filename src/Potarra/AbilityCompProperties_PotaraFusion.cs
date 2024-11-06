@@ -47,11 +47,6 @@ namespace Potarra
             }
         }
 
-        public override bool GizmoDisabled(out string reason)
-        {
-            return base.GizmoDisabled(out reason) && !parent.pawn.IsAbilityUser();
-        }
-
         private void InitiateFusion(Pawn pawn1, Pawn pawn2)
         {
             bool IsFusionFailure = Rand.Value < Props.FailureChance;
@@ -67,7 +62,19 @@ namespace Potarra
             if (!fusedPawn.Spawned)
             {
                 GenSpawn.Spawn(fusedPawn, position, map);
-            }       
+            }
+
+
+
+            if (!IsFusionFailure)
+            {
+                Messages.Message($"{pawn1.NameShortColored} fused with {pawn2.NameShortColored} creating {fusedPawn.NameShortColored}!", MessageTypeDefOf.PositiveEvent);
+            }
+            else
+            {
+                Messages.Message($"Fusion Failure! {pawn1.NameShortColored} failed to fuse properly with {pawn2.NameShortColored} creating {fusedPawn.NameShortColored}!", MessageTypeDefOf.NegativeHealthEvent);
+            }
+ 
         }
 
         public override bool CanApplyOn(LocalTargetInfo target, LocalTargetInfo dest)

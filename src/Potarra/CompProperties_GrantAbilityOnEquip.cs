@@ -23,13 +23,10 @@ namespace Potarra
     {
         new CompProperties_GrantAbilityOnEquip Props => (CompProperties_GrantAbilityOnEquip)props;
         private bool DidGrant = false;
-        private int? StoredCooldown = null;
 
         public override void PostSpawnSetup(bool respawningAfterLoad)
         {
             base.PostSpawnSetup(respawningAfterLoad);
-            //Log.Message($"PostSpawnSetup called, respawningAfterLoad: {respawningAfterLoad}");
-
             TryReGrant();
         }
 
@@ -37,19 +34,11 @@ namespace Potarra
         {
             if (parent is Apparel apparel && apparel.Wearer != null)
             {
-                // Check if pawn doesn't have the ability and meets requirements
                 if (!apparel.Wearer.HasAbility(Props.AbilityToGrant) && MeetsRequirements(apparel.Wearer))
                 {
-                    // Grant the ability
                     apparel.Wearer.abilities.GainAbility(Props.AbilityToGrant);
                     Ability grantedAbility = apparel.Wearer.abilities.GetAbility(Props.AbilityToGrant);
                     DidGrant = true;
-
-                    // Restore cooldown if we had one stored
-                    if (StoredCooldown.HasValue)
-                    {
-                        grantedAbility.StartCooldown(StoredCooldown.Value);
-                    }
                 }
             }
 
@@ -58,16 +47,11 @@ namespace Potarra
         public override void Notify_Equipped(Pawn pawn)
         {
             base.Notify_Equipped(pawn);
-            //Log.Message($"Notify_Equipped called pawn faction {pawn.Faction} pawn has ability {pawn.HasAbility(Props.AbilityToGrant)} pawn meets requirements {MeetsRequirements(pawn)}");
             if (pawn.Faction == Faction.OfPlayer && !pawn.HasAbility(Props.AbilityToGrant) && MeetsRequirements(pawn))
             {
                 pawn.abilities.GainAbility(Props.AbilityToGrant);
                 Ability grantedAbility = pawn.abilities.GetAbility(Props.AbilityToGrant);
                 DidGrant = true;
-                if (StoredCooldown.HasValue)
-                {
-                    grantedAbility.StartCooldown(StoredCooldown.Value);
-                }
             }
         }
         public override void Notify_Unequipped(Pawn pawn)
@@ -80,7 +64,6 @@ namespace Potarra
                 Ability abilityToRemove = pawn.abilities.GetAbility(Props.AbilityToGrant);
                 if (abilityToRemove != null)
                 {
-                    StoredCooldown = abilityToRemove.CooldownTicksRemaining;
                     pawn.abilities.RemoveAbility(Props.AbilityToGrant);
                 }
                 DidGrant = false;
@@ -141,7 +124,7 @@ namespace Potarra
         {
             base.PostExposeData();
             Scribe_Values.Look(ref DidGrant, "DidGrant");
-            Scribe_Values.Look(ref StoredCooldown, "StoredCooldown");
+           // Scribe_Values.Look(ref StoredCooldown, "StoredCooldown");
         }
     }
 }

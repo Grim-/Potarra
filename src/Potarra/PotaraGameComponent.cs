@@ -19,50 +19,111 @@ namespace Potarra
             base.ExposeData();
             Scribe_Collections.Look(ref fusionData, "fusionData", LookMode.Deep);
         }
-        private Pawn CreateNewFusedPawn(Pawn pawn1, Pawn pawn2, IntVec3 position, Map map, int mergedLevel, bool isFailure)
+        private Pawn CreateNewFusedPawn(Pawn pawn1, Pawn pawn2, IntVec3 position, Map map, int mergedLevel, float mergedXP, bool isFailure)
         {
             Pawn fusedPawn;
             if (isFailure)
             {
-                fusedPawn = PawnFusionUtil.CreateFusionPawn(pawn1, pawn2, PawnKindDefOf.Colonist);
+                fusedPawn = CreateFusionPawn(pawn1, pawn2, isFailure);
                 fusedPawn.health.GetOrAddHediff(PotarraDefOf.DBZ_PotaraFusionFailure);
                 fusedPawn.story.bodyType = Rand.Bool ? BodyTypeDefOf.Fat : BodyTypeDefOf.Thin;
                 fusedPawn.ResolveAllGraphicsSafely();
             }
             else
             {
-                fusedPawn = PawnFusionUtil.CreateFusionPawn(pawn1, pawn2);
+                fusedPawn = CreateFusionPawn(pawn1, pawn2, isFailure);
             }
 
             UpdateFusedPawnSkills(fusedPawn, pawn1, pawn2);
-            SetupFusedPawnAbilities(fusedPawn, pawn1, pawn2, mergedLevel);
+            SetupFusedPawnAbilities(fusedPawn, pawn1, pawn2, mergedLevel, mergedXP);
             ApplyFusionClothes(fusedPawn);
 
-            // Ensure the new pawn starts in a clean state
             RestorePawn(fusedPawn, position, map);
 
             return fusedPawn;
         }
 
+        public Pawn CreateFusionPawn(Pawn pawn1, Pawn pawn2, bool isFailure)
+        {
+            PawnKindDef ChosenKind = ChooseKind(pawn1, pawn2, isFailure);
+            Gender ChosenGender = ChooseGender(pawn1, pawn2);
+
+            Log.Message($"Generating new fusion Pawn for {pawn1.Name} & {pawn2.Name} Gender {ChosenGender} KindDef {ChosenKind.defName} IsFailure? {isFailure}");
+
+            PawnGenerationRequest req = new PawnGenerationRequest(ChosenKind, pawn1.Faction, PawnGenerationContext.NonPlayer, -1,
+                false, false, false, false, true, 0, false, true, false, false, false, false, false, false, false, 0, 0, null, 0,
+                null, null, null, null, null, null, null, ChosenGender, null, null, null);
+
+            Pawn fusedPawn = PawnGenerator.GeneratePawn(req);
+            GenSpawn.Spawn(fusedPawn, pawn1.Position, pawn1.Map);
+
+            HediffComp_PotaraFusion fusionComp = GetOrAddPotara(fusedPawn);
+
+            if (fusionComp != null)
+            {
+                fusionComp.SetOriginalPawns(pawn1, pawn2);
+                fusedPawn.MergeName(pawn1, pawn2);
+                fusedPawn.MergeTraits(pawn1, pawn2);
+
+                fusedPawn.MergeGenes(pawn1, pawn2);
+                fusedPawn.MergeSkillsFrom(pawn1, pawn2);
+                fusedPawn.MergeAbilityLevels(pawn1, pawn2);
+            }
+
+            return fusedPawn;
+        }
+
+
+        public static HediffComp_PotaraFusion GetOrAddPotara(Pawn Pawn)
+        {
+            Log.Message($"Getting or Adding Fusion Hediff to {Pawn.Label}..");
+
+            Hediff hediff = Pawn.health.GetOrAddHediff(PotarraDefOf.DBZ_PotaraFusion);
+
+            if (hediff.TryGetComp(out HediffComp_PotaraFusion potaraFusion))
+            {
+                return potaraFusion;
+            }
+            Log.Message($"Failed to find or add Fusion Hediff to {Pawn.Label}..");
+            return null;
+        }
+
+        public PawnKindDef ChooseKind(Pawn pawn1, Pawn pawn2, bool IsFailure)
+        {
+            if (IsFailure)
+            {
+                return PawnKindDefOf.Colonist;
+            }
+            else
+            {
+                return Rand.Bool ? pawn1.kindDef : pawn2.kindDef;
+            }
+        }
+
+
+        public Gender ChooseGender(Pawn pawn1, Pawn pawn2)
+        {
+            return pawn1.gender == pawn2.gender ? pawn1.gender : Rand.Bool ? Gender.Male : Gender.Female;
+        }
 
         public Pawn GetOrCreateFusedPawn(Pawn pawn1, Pawn pawn2, IntVec3 position, Map map, AbilityCompProperties_PotaraFusion props, bool isFailure)
         {
             int mergedLevel = PawnFusionUtil.GetMergedLevel(pawn1, pawn2) + props.FusionLevelFlatBonus;
-
+            float mergedExperience = PawnFusionUtil.GetMergedExperience(pawn1, pawn2);
             if (isFailure)
             {
                 mergedLevel /= 2 + 1;
+                mergedExperience /= 2 + 1;
             }
 
             if (TryGetFusionDataFor(pawn1, pawn2, out FusionPawnData existingFusion))
             {
-                // Get the appropriate pawn based on fusion type
+
                 Pawn existingPawn = isFailure ? existingFusion.failedFusePawn : existingFusion.fusedPawn;
 
                 if (existingPawn == null)
                 {
-                    Log.Message($"Creating new fusion pawn (is failure? {isFailure} for p1: {pawn1.Label} + p2:{pawn2.Label}");
-                    existingPawn = CreateNewFusedPawn(pawn1, pawn2, position, map, mergedLevel, isFailure);
+                    existingPawn = CreateNewFusedPawn(pawn1, pawn2, position, map, mergedLevel, mergedExperience, isFailure);
 
                     if (isFailure)
                         existingFusion.SetFailureForm(existingPawn);
@@ -71,12 +132,14 @@ namespace Potarra
                 }
                 else
                 {
-                    Log.Message($"Getting existing fusion pawn ({existingPawn.Label} (is failure? {isFailure} for {pawn1.Label} + {pawn2.Label}");
+                    Log.Message($"Existig fusion pawn found for {pawn1.Label} + {pawn2.Label} : ({existingPawn.Label} (is failure? {isFailure}");
                     // Restore and update existing fusion
                     RestorePawn(existingPawn, position, map);
                     UpdateFusedPawnSkills(existingPawn, pawn1, pawn2);
+                    GetOrAddPotara(existingPawn).ResetDuration();
                     var existingAbilityKi = existingPawn.GetPawnAbilityClassKI();
                     existingAbilityKi.SetLevel(mergedLevel);
+                    existingAbilityKi.GainXP(mergedExperience);
                     existingAbilityKi.skillPoints = mergedLevel;
                 }
 
@@ -89,7 +152,7 @@ namespace Potarra
             }
             else
             {
-                Pawn newFusedPawn = CreateNewFusedPawn(pawn1, pawn2, position, map, mergedLevel, isFailure);
+                Pawn newFusedPawn = CreateNewFusedPawn(pawn1, pawn2, position, map, mergedLevel, mergedExperience, isFailure);
 
                 if (!newFusedPawn.Faction.IsPlayer)
                 {
@@ -117,6 +180,7 @@ namespace Potarra
             FusionData = null;
             return false;
         }
+
         public void LogFusionData(Pawn pawn1, Pawn pawn2, FusionPawnData data)
         {
             var p1Label = pawn1?.Label ?? "null";
@@ -137,8 +201,13 @@ namespace Potarra
         }
         public static void RestorePawn(Pawn pawn, IntVec3 position, Map map)
         {
+            Log.Message($"Restoring {pawn.Label} health...");
+
             List<Hediff> hediffsToRemove = pawn.health.hediffSet.hediffs
-                .Where(h => h.def != PotarraDefOf.DBZ_PotaraFusion || h.def.isBad)
+                .Where(h =>
+                    h.def != PotarraDefOf.DBZ_PotaraFusion &&
+                    h.def != SR_DefOf.SR_SaiyanTail &&        
+                    (h.def.isBad || h.def.tendable))          
                 .ToList();
 
             foreach (Hediff hediff in hediffsToRemove)
@@ -172,7 +241,7 @@ namespace Potarra
             }
             pawn.ResolveAllGraphicsSafely();
         }
-        private void SetupFusedPawnAbilities(Pawn fusedPawn, Pawn pawn1, Pawn pawn2, int mergedLevel)
+        private void SetupFusedPawnAbilities(Pawn fusedPawn, Pawn pawn1, Pawn pawn2, int mergedLevel, float mergedXP)
         {
             PawnSkillExtensions.RemoveKiGene(fusedPawn);
             GeneDef fusedGeneChoice = PawnSkillExtensions.PickBestKiGene(pawn1, pawn2);
@@ -184,18 +253,19 @@ namespace Potarra
             var abilityKi = fusedPawn.GetPawnAbilityClassKI();
             abilityKi.SetLevel(mergedLevel);
             abilityKi.skillPoints = mergedLevel;
+            //abilityKi.GainXP(mergedXP);
             PawnSkillExtensions.LearnAndLevelAbilities(fusedPawn);
         }
 
         private void ApplyFusionClothes(Pawn fusedPawn)
         {
-            if (!fusedPawn.apparel.WornApparel.Any(x => x.def == PotarraDefOf.SR_KaiRobes))
+            bool hasWornRobes = fusedPawn.apparel.WornApparel.Any(x => x.def == PotarraDefOf.SR_KaiRobes);
+            bool hasRobesInInventory = fusedPawn.inventory.innerContainer.Any(x => x.def == PotarraDefOf.SR_KaiRobes);
+
+            if (!hasWornRobes && !hasRobesInInventory)
             {
                 Apparel newRobes = (Apparel)ThingMaker.MakeThing(PotarraDefOf.SR_KaiRobes);
-                if (fusedPawn.apparel.TryMoveToInventory(newRobes))
-                {
-                    fusedPawn.apparel.Wear(newRobes, false, false);
-                }
+                fusedPawn.apparel.Wear(newRobes, false, false);
             }
         }
 

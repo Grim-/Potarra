@@ -58,7 +58,12 @@ namespace Potarra
             int pawnTwoLevel = Pawn2.GetPawnKiLevel();
             return pawnOneLevel + pawnTwoLevel;
         }
-
+        public static float GetMergedExperience(Pawn Pawn1, Pawn Pawn2)
+        {
+            float pawnOneLevel = Pawn1.GetPawnKiXP();
+            float pawnTwoLevel = Pawn2.GetPawnKiXP();
+            return pawnOneLevel + pawnTwoLevel;
+        }
 
         public static void MergeAbilityLevels(this Pawn FusionPawn, Pawn pawn1, Pawn pawn2)
         {
@@ -77,7 +82,7 @@ namespace Potarra
                 {
                     foreach (TaranMagicFramework.AbilityDef abilityDef in abilityTreeDef.AllAbilities)
                     {
-                        if (abilityDef == SR_DefOf.SR_TrueSuperSaiyan || abilityDef == DefDatabase<TaranMagicFramework.AbilityDef>.GetNamed("SR_MajinMark"))
+                        if (abilityDef == SR_DefOf.SR_TrueSuperSaiyan || abilityDef == PotarraDefOf.SR_MajinMark)
                         {
                             continue;
                         }
@@ -94,37 +99,6 @@ namespace Potarra
                     }
                 }
             }
-        }
-
-
-        public static Pawn CreateFusionPawn(Pawn pawn1, Pawn pawn2, PawnKindDef OverrideKindDef = null)
-        {
-            PawnKindDef ChosenKind = OverrideKindDef != null ? OverrideKindDef : Rand.Bool ? pawn1.kindDef : pawn2.kindDef;
-
-            PawnGenerationRequest req = new PawnGenerationRequest(ChosenKind, pawn1.Faction, PawnGenerationContext.NonPlayer, -1,
-                false, false, false, false, true, 0, false, true, false, false, false, false, false, false, false, 0, 0, null, 0,
-                null, null, null, null, null, null, null, pawn1.gender == pawn2.gender ? pawn1.gender : Rand.Bool ? Gender.Male : Gender.Female);
-
-            // Create the fused pawn
-            Pawn fusedPawn = PawnGenerator.GeneratePawn(req);
-
-            Hediff hediff = fusedPawn.health.GetOrAddHediff(PotarraDefOf.DBZ_PotaraFusion);
-            GenSpawn.Spawn(fusedPawn, pawn1.Position, pawn1.Map);
-
-            HediffComp_PotaraFusion fusionComp = hediff.TryGetComp<HediffComp_PotaraFusion>();
-
-            if (fusionComp != null)
-            {
-                fusionComp.SetOriginalPawns(pawn1, pawn2);
-                fusedPawn.MergeName(pawn1, pawn2);
-                fusedPawn.MergeTraits(pawn1, pawn2);
-
-                fusedPawn.MergeGenes(pawn1, pawn2);
-                fusedPawn.MergeSkillsFrom(pawn1, pawn2);
-                fusedPawn.MergeAbilityLevels(pawn1, pawn2);
-            }
-
-            return fusedPawn;
         }
     }
 }
