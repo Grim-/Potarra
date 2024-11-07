@@ -196,7 +196,20 @@ namespace Potarra
         }
 
 
-        [DebugAction("The Saiyans", "RemoveKiGene", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        [DebugAction("The Saiyans", "ForceEndFusion", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        public static void ForceEndFusion(Pawn p)
+        {
+            if (p.IsAFusionPawn())
+            {
+                var FusionComp = p.GetFusionHediff();
+                if (FusionComp != null)
+                {
+                    FusionComp.EndFusion();
+                }
+            }
+        }
+
+        [DebugAction("The Saiyans", "RemoveKiGenes", actionType = DebugActionType.ToolMapForPawns, allowedGameStates = AllowedGameStates.PlayingOnMap)]
         public static void RemoveKiGene(Pawn p)
         {
             List<Gene> SaiyanGenes = p.GetSaiyanGenes();
@@ -258,6 +271,23 @@ namespace Potarra
             return SaiyanRanks[fusedRank];
         }
 
+
+        public static HediffComp_PotaraFusion GetFusionHediff(this Pawn Pawn)
+        {
+            Hediff permanentHediff = Pawn.health.hediffSet.GetFirstHediffOfDef(PotarraDefOf.DBZ_PermanentPotaraFusion);
+            if (permanentHediff != null && permanentHediff.TryGetComp(out HediffComp_PotaraFusion permanentComp))
+            {
+                return permanentComp;
+            }
+
+            Hediff regularHediff = Pawn.health.hediffSet.GetFirstHediffOfDef(PotarraDefOf.DBZ_PotaraFusion);
+            if (regularHediff != null && regularHediff.TryGetComp(out HediffComp_PotaraFusion regularComp))
+            {
+                return regularComp;
+            }
+
+            return null;
+        }
 
         public static List<Gene> GetNonKiGenes(this Pawn pawn)
         {

@@ -19,19 +19,22 @@ namespace Potarra
             base.ExposeData();
             Scribe_Collections.Look(ref fusionData, "fusionData", LookMode.Deep);
         }
-        private Pawn CreateNewFusedPawn(Pawn pawn1, Pawn pawn2, IntVec3 position, Map map, int mergedLevel, float mergedXP, bool isFailure)
+        private Pawn CreateNewFusedPawn(Pawn pawn1, Pawn pawn2, AbilityCompProperties_PotaraFusion props, IntVec3 position, Map map, int mergedLevel, float mergedXP, bool isFailure, bool isPermanent)
         {
             Pawn fusedPawn;
             if (isFailure)
             {
-                fusedPawn = CreateFusionPawn(pawn1, pawn2, isFailure);
+                fusedPawn = CreateFusionPawn(pawn1, pawn2, props, isFailure, isPermanent);
                 fusedPawn.health.GetOrAddHediff(PotarraDefOf.DBZ_PotaraFusionFailure);
-                fusedPawn.story.bodyType = Rand.Bool ? BodyTypeDefOf.Fat : BodyTypeDefOf.Thin;
-                fusedPawn.ResolveAllGraphicsSafely();
+                if (!fusedPawn.IsSaiyan())
+                {
+                    fusedPawn.story.bodyType = Rand.Bool ? BodyTypeDefOf.Fat : BodyTypeDefOf.Thin;
+                    fusedPawn.ResolveAllGraphicsSafely();
+                }
             }
             else
             {
-                fusedPawn = CreateFusionPawn(pawn1, pawn2, isFailure);
+                fusedPawn = CreateFusionPawn(pawn1, pawn2, props, isFailure, isPermanent);
             }
 
             UpdateFusedPawnSkills(fusedPawn, pawn1, pawn2);
@@ -43,7 +46,7 @@ namespace Potarra
             return fusedPawn;
         }
 
-        public Pawn CreateFusionPawn(Pawn pawn1, Pawn pawn2, bool isFailure)
+        public Pawn CreateFusionPawn(Pawn pawn1, Pawn pawn2, AbilityCompProperties_PotaraFusion props, bool isFailure, bool isPermanent)
         {
             PawnKindDef ChosenKind = ChooseKind(pawn1, pawn2, isFailure);
             Gender ChosenGender = ChooseGender(pawn1, pawn2);
@@ -57,7 +60,7 @@ namespace Potarra
             Pawn fusedPawn = PawnGenerator.GeneratePawn(req);
             GenSpawn.Spawn(fusedPawn, pawn1.Position, pawn1.Map);
 
-            HediffComp_PotaraFusion fusionComp = GetOrAddPotara(fusedPawn);
+            HediffComp_PotaraFusion fusionComp = GetOrAddPotara(fusedPawn, isPermanent);
 
             if (fusionComp != null)
             {
@@ -74,11 +77,11 @@ namespace Potarra
         }
 
 
-        public static HediffComp_PotaraFusion GetOrAddPotara(Pawn Pawn)
+        public static HediffComp_PotaraFusion GetOrAddPotara(Pawn Pawn, bool isPermanent)
         {
             Log.Message($"Getting or Adding Fusion Hediff to {Pawn.Label}..");
 
-            Hediff hediff = Pawn.health.GetOrAddHediff(PotarraDefOf.DBZ_PotaraFusion);
+            Hediff hediff = Pawn.health.GetOrAddHediff(GetFusionHediff(isPermanent));
 
             if (hediff.TryGetComp(out HediffComp_PotaraFusion potaraFusion))
             {
@@ -86,6 +89,11 @@ namespace Potarra
             }
             Log.Message($"Failed to find or add Fusion Hediff to {Pawn.Label}..");
             return null;
+        }
+
+        private static HediffDef GetFusionHediff(bool isPermanent)
+        {
+            return isPermanent ? PotarraDefOf.DBZ_PermanentPotaraFusion : PotarraDefOf.DBZ_PotaraFusion;
         }
 
         public PawnKindDef ChooseKind(Pawn pawn1, Pawn pawn2, bool IsFailure)
@@ -106,7 +114,7 @@ namespace Potarra
             return pawn1.gender == pawn2.gender ? pawn1.gender : Rand.Bool ? Gender.Male : Gender.Female;
         }
 
-        public Pawn GetOrCreateFusedPawn(Pawn pawn1, Pawn pawn2, IntVec3 position, Map map, AbilityCompProperties_PotaraFusion props, bool isFailure)
+        public Pawn GetOrCreateFusedPawn(Pawn pawn1, Pawn pawn2, IntVec3 position, Map map, AbilityCompProperties_PotaraFusion props, bool isFailure, bool isPermanent)
         {
             int mergedLevel = PawnFusionUtil.GetMergedLevel(pawn1, pawn2) + props.FusionLevelFlatBonus;
             float mergedExperience = PawnFusionUtil.GetMergedExperience(pawn1, pawn2);
@@ -123,7 +131,7 @@ namespace Potarra
 
                 if (existingPawn == null)
                 {
-                    existingPawn = CreateNewFusedPawn(pawn1, pawn2, position, map, mergedLevel, mergedExperience, isFailure);
+                    existingPawn = CreateNewFusedPawn(pawn1, pawn2, props, position, map, mergedLevel, mergedExperience, isFailure, isPermanent);
 
                     if (isFailure)
                         existingFusion.SetFailureForm(existingPawn);
@@ -136,7 +144,7 @@ namespace Potarra
                     // Restore and update existing fusion
                     RestorePawn(existingPawn, position, map);
                     UpdateFusedPawnSkills(existingPawn, pawn1, pawn2);
-                    GetOrAddPotara(existingPawn).ResetDuration();
+                    GetOrAddPotara(existingPawn, isPermanent).ResetDuration();
                     var existingAbilityKi = existingPawn.GetPawnAbilityClassKI();
                     existingAbilityKi.SetLevel(mergedLevel);
                     existingAbilityKi.GainXP(mergedExperience);
@@ -152,7 +160,7 @@ namespace Potarra
             }
             else
             {
-                Pawn newFusedPawn = CreateNewFusedPawn(pawn1, pawn2, position, map, mergedLevel, mergedExperience, isFailure);
+                Pawn newFusedPawn = CreateNewFusedPawn(pawn1, pawn2, props, position, map, mergedLevel, mergedExperience, isFailure, isPermanent);
 
                 if (!newFusedPawn.Faction.IsPlayer)
                 {
@@ -210,12 +218,12 @@ namespace Potarra
                     (h.def.isBad || h.def.tendable))          
                 .ToList();
 
+
             foreach (Hediff hediff in hediffsToRemove)
             {
                 pawn.health.RemoveHediff(hediff);
             }
 
-            // Reset needs
             if (pawn.needs != null)
             {
                 foreach (Need need in pawn.needs.AllNeeds)
@@ -241,6 +249,7 @@ namespace Potarra
             }
             pawn.ResolveAllGraphicsSafely();
         }
+
         private void SetupFusedPawnAbilities(Pawn fusedPawn, Pawn pawn1, Pawn pawn2, int mergedLevel, float mergedXP)
         {
             PawnSkillExtensions.RemoveKiGene(fusedPawn);

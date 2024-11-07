@@ -10,7 +10,7 @@ namespace Potarra
 {
     public class AbilityCompProperties_PotaraFusion : CompProperties_AbilityEffect
     {
-        public HediffDef FusionHediff;
+        public bool IsPermanent = false;
         public int FusionLevelFlatBonus = 30;
         public float FailureChance = 0.2f;
 
@@ -39,6 +39,7 @@ namespace Potarra
 
                 if (parent.pawn.IsAFusionPawn() || targetPawn.IsAFusionPawn())
                 {
+                    Messages.Message($"{parent.pawn.NameShortColored} cannot fuse with {targetPawn.NameShortColored}, pawns that are already fused cannot fuse with any other pawn.", MessageTypeDefOf.NegativeEvent);
                     //dont let merged pawns merge again
                     return;
                 }
@@ -52,7 +53,7 @@ namespace Potarra
             bool IsFusionFailure = Rand.Value < Props.FailureChance;
             Map map = parent.pawn.Map;
             IntVec3 position = parent.pawn.Position;
-            Pawn fusedPawn = FusionManager.GetOrCreateFusedPawn(pawn1, pawn2, position, map, Props, IsFusionFailure);
+            Pawn fusedPawn = FusionManager.GetOrCreateFusedPawn(pawn1, pawn2, position, map, Props, IsFusionFailure, Props.IsPermanent);
             pawn1.DeSpawn();
             Find.WorldPawns.PassToWorld(pawn1, PawnDiscardDecideMode.KeepForever);
 

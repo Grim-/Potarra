@@ -33,6 +33,7 @@ namespace Potarra
         {
             base.CompPostMake();
             ticksRemaining = Props.durationTicks;
+            GrantEndPotara();
         }
 
         public override void CompExposeData()
@@ -47,9 +48,7 @@ namespace Potarra
         {
             originalPawn1 = pawn1;
             originalPawn2 = pawn2;
-            ticksRemaining = Props.durationTicks;
-
-            GrantEndPotara();
+            ResetDuration();
         }
 
 
@@ -60,16 +59,6 @@ namespace Potarra
                 parent.pawn.abilities.GainAbility(PotarraDefOf.DBZ_EndPotaraFusion);
             }
         }
-
-
-        //private void RemoveEndPotara()
-        //{
-        //    if (parent.pawn.HasAbility(PotarraDefOf.DBZ_EndPotaraFusion))
-        //    {
-        //        parent.pawn.abilities.RemoveAbility(PotarraDefOf.DBZ_EndPotaraFusion);
-        //    }
-        //}
-
 
         public override void CompPostPostRemoved()
         {

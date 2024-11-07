@@ -9,6 +9,7 @@ namespace Potarra
         public static HediffDef DBZ_PotaraFusion;
         public static HediffDef DBZ_PotaraFusionFatigue;
         public static HediffDef DBZ_PotaraFusionFailure;
+        public static HediffDef DBZ_PermanentPotaraFusion;
 
 
         public static ThingDef SR_KaiRobes;

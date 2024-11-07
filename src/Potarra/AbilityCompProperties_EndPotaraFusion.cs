@@ -17,14 +17,15 @@ namespace Potarra
         {
             base.Apply(target, dest);
 
-            Hediff hediff = parent.pawn.health.hediffSet.GetFirstHediffOfDef(PotarraDefOf.DBZ_PotaraFusion);
-
-            if (hediff != null && hediff.TryGetComp(out HediffComp_PotaraFusion potaraFusion))
+            HediffComp_PotaraFusion potaraFusion = parent.pawn.GetFusionHediff();
+            if (potaraFusion != null)
             {
                 potaraFusion.EndFusion();
             }
 
         }
+
+
     }
 }
 

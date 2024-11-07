@@ -77,7 +77,7 @@
     <Compile Include="JobDriver_PerformFusionDance.cs" />
     <Compile Include="PawnFusionUtil.cs" />
     <Compile Include="PawnSkillExtensions.cs" />
-    <Compile Include="PotaraGameComponent.cs" />
+    <Compile Include="FusionManager.cs" />
     <Compile Include="PotarraDefOf.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
